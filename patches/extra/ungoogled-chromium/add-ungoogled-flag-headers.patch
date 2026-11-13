@@ -1,8 +1,8 @@
 --- a/chrome/browser/about_flags.cc
 +++ b/chrome/browser/about_flags.cc
-@@ -2728,7 +2728,13 @@ const FeatureEntry::FeatureVariation kWi
- // calculate and verify checksum.
- //
+@@ -5165,7 +5165,13 @@ constexpr char kEnterpriseIsolatedModeIn
+     "force-enterprise-isolated-mode";
+ 
  // When adding a new choice, add it to the end of the list.
 +#include "chrome/browser/ungoogled_flag_choices.h"
 +#include "chrome/browser/bromite_flag_choices.h"

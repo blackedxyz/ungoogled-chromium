@@ -21,6 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'utils'))
 from downloads import DownloadInfo, schema
+
 sys.path.pop(0)
 
 
@@ -30,7 +31,7 @@ def check_downloads_ini(downloads_ini_iter):
 
     downloads_ini_iter must be an iterable of strings to downloads.ini files.
 
-    Returns True if errors occured, False otherwise.
+    Returns True if errors occurred, False otherwise.
     """
     try:
         DownloadInfo(downloads_ini_iter)
@@ -43,21 +44,20 @@ def main():
     """CLI entrypoint"""
 
     root_dir = Path(__file__).resolve().parent.parent
-    default_downloads_ini = [str(root_dir / 'downloads.ini')]
+    default_downloads_ini = [root_dir / 'downloads.ini']
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        '-d',
-        '--downloads-ini',
-        type=Path,
-        nargs='*',
-        default=default_downloads_ini,
-        help='List of downloads.ini files to check. Default: %(default)s')
+    parser.add_argument('-d',
+                        '--downloads-ini',
+                        type=Path,
+                        nargs='*',
+                        default=default_downloads_ini,
+                        help='List of downloads.ini files to check. Default: %(default)s')
     args = parser.parse_args()
 
     if check_downloads_ini(args.downloads_ini):
-        exit(1)
-    exit(0)
+        sys.exit(1)
+    sys.exit(0)
 
 
 if __name__ == '__main__':

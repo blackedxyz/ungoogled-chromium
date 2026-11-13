@@ -2,26 +2,26 @@
 
 --- a/chrome/browser/ungoogled_flag_entries.h
 +++ b/chrome/browser/ungoogled_flag_entries.h
-@@ -56,4 +56,8 @@
+@@ -48,4 +48,8 @@
       "Close window with last tab",
-      "Determines whether a window should close once the last tab is closed.  ungoogled-chromium flag.",
+      "Determines whether a window should close once the last tab is closed. ungoogled-chromium flag.",
       kOsDesktop, MULTI_VALUE_TYPE(kCloseWindowWithLastTab)},
 +    {"popups-to-tabs",
 +     "Popups to tabs",
-+     "Makes popups open in new tabs.  ungoogled-chromium flag",
++     "Makes popups open in new tabs. ungoogled-chromium flag",
 +     kOsAll, SINGLE_VALUE_TYPE("popups-to-tabs")},
  #endif  // CHROME_BROWSER_UNGOOGLED_FLAG_ENTRIES_H_
---- a/content/renderer/render_view_impl.cc
-+++ b/content/renderer/render_view_impl.cc
-@@ -73,6 +73,8 @@ WindowOpenDisposition RenderViewImpl::Na
+--- a/content/renderer/render_frame_impl.cc
++++ b/content/renderer/render_frame_impl.cc
+@@ -1295,6 +1295,8 @@ WindowOpenDisposition NavigationPolicyTo
      case blink::kWebNavigationPolicyNewWindow:
        return WindowOpenDisposition::NEW_WINDOW;
      case blink::kWebNavigationPolicyNewPopup:
 +      if (base::CommandLine::ForCurrentProcess()->HasSwitch("popups-to-tabs"))
 +        return WindowOpenDisposition::NEW_FOREGROUND_TAB;
        return WindowOpenDisposition::NEW_POPUP;
-     default:
-       NOTREACHED() << "Unexpected WebNavigationPolicy";
+     case blink::kWebNavigationPolicyPictureInPicture:
+       return WindowOpenDisposition::NEW_PICTURE_IN_PICTURE;
 --- a/ui/base/mojom/window_open_disposition_mojom_traits.h
 +++ b/ui/base/mojom/window_open_disposition_mojom_traits.h
 @@ -5,6 +5,7 @@
@@ -32,9 +32,9 @@
  #include "base/notreached.h"
  #include "mojo/public/cpp/bindings/enum_traits.h"
  #include "ui/base/mojom/window_open_disposition.mojom.h"
-@@ -28,6 +29,8 @@ struct EnumTraits<ui::mojom::WindowOpenD
-       case WindowOpenDisposition::NEW_BACKGROUND_TAB:
-         return ui::mojom::WindowOpenDisposition::NEW_BACKGROUND_TAB;
+@@ -30,6 +31,8 @@ struct EnumTraits<ui::mojom::WindowOpenD
+       case WindowOpenDisposition::NEW_PICTURE_IN_PICTURE:
+         return ui::mojom::WindowOpenDisposition::NEW_PICTURE_IN_PICTURE;
        case WindowOpenDisposition::NEW_POPUP:
 +        if (base::CommandLine::ForCurrentProcess()->HasSwitch("popups-to-tabs"))
 +          return ui::mojom::WindowOpenDisposition::NEW_FOREGROUND_TAB;
@@ -42,11 +42,11 @@
        case WindowOpenDisposition::NEW_WINDOW:
          return ui::mojom::WindowOpenDisposition::NEW_WINDOW;
 @@ -63,6 +66,8 @@ struct EnumTraits<ui::mojom::WindowOpenD
-         return true;
+       case ui::mojom::WindowOpenDisposition::NEW_PICTURE_IN_PICTURE:
+         return WindowOpenDisposition::NEW_PICTURE_IN_PICTURE;
        case ui::mojom::WindowOpenDisposition::NEW_POPUP:
-         *out = WindowOpenDisposition::NEW_POPUP;
 +        if (base::CommandLine::ForCurrentProcess()->HasSwitch("popups-to-tabs"))
-+          *out = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-         return true;
++          return WindowOpenDisposition::NEW_FOREGROUND_TAB;
+         return WindowOpenDisposition::NEW_POPUP;
        case ui::mojom::WindowOpenDisposition::NEW_WINDOW:
-         *out = WindowOpenDisposition::NEW_WINDOW;
+         return WindowOpenDisposition::NEW_WINDOW;

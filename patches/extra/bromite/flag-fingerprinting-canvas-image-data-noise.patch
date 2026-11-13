@@ -29,63 +29,55 @@ approach to change color components.
       kOsAll, MULTI_VALUE_TYPE(kMaxConnectionsPerHostChoices)},
 +    {"fingerprinting-canvas-image-data-noise",
 +     "Enable Canvas image data fingerprint deception",
-+     "Slightly modifies at most 10 pixels in Canvas image data extracted via JS APIs.  ungoogled-chromium flag, Bromite feature.",
++     "Slightly modifies at most 10 pixels in Canvas image data extracted via JS APIs. ungoogled-chromium flag, Bromite feature.",
 +     kOsAll, SINGLE_VALUE_TYPE(switches::kFingerprintingCanvasImageDataNoise)},
  #endif  // CHROME_BROWSER_BROMITE_FLAG_ENTRIES_H_
 --- a/content/browser/renderer_host/render_process_host_impl.cc
 +++ b/content/browser/renderer_host/render_process_host_impl.cc
-@@ -3468,6 +3468,7 @@ void RenderProcessHostImpl::PropagateBro
-     switches::kFileUrlPathAlias,
-     switches::kFingerprintingClientRectsNoise,
-     switches::kFingerprintingCanvasMeasureTextNoise,
-+    switches::kFingerprintingCanvasImageDataNoise,
-     switches::kForceDeviceScaleFactor,
-     switches::kForceDisplayColorProfile,
-     switches::kForceGpuMemAvailableMb,
+@@ -3965,6 +3965,7 @@ void RenderProcessHostImpl::PropagateBro
+       switches::kFileUrlPathAlias,
+       switches::kFingerprintingClientRectsNoise,
+       switches::kFingerprintingCanvasMeasureTextNoise,
++      switches::kFingerprintingCanvasImageDataNoise,
+       switches::kForceDeviceScaleFactor,
+       switches::kForceDisplayColorProfile,
+       switches::kForceHighContrast,
 --- a/content/child/runtime_features.cc
 +++ b/content/child/runtime_features.cc
-@@ -471,6 +471,8 @@ void SetRuntimeFeaturesFromCommandLine(c
+@@ -383,6 +383,8 @@ void SetRuntimeFeaturesFromCommandLine(c
         switches::kFingerprintingClientRectsNoise, true},
        {wrf::EnableFingerprintingCanvasMeasureTextNoise,
         switches::kFingerprintingCanvasMeasureTextNoise, true},
 +      {wrf::EnableFingerprintingCanvasImageDataNoise,
 +       switches::kFingerprintingCanvasImageDataNoise, true},
    };
-   for (const auto& mapping : switchToFeatureMapping) {
-     if (command_line.HasSwitch(mapping.switch_name))
+ 
+   for (const auto& mapping : switch_to_feature_mapping) {
 --- a/third_party/blink/public/platform/web_runtime_features.h
 +++ b/third_party/blink/public/platform/web_runtime_features.h
-@@ -220,6 +220,7 @@ class WebRuntimeFeatures {
-   BLINK_PLATFORM_EXPORT static void EnableAllowSyncXHRInPageDismissal(bool);
-   BLINK_PLATFORM_EXPORT static void EnableFingerprintingClientRectsNoise(bool);
-   BLINK_PLATFORM_EXPORT static void EnableFingerprintingCanvasMeasureTextNoise(bool);
-+  BLINK_PLATFORM_EXPORT static void EnableFingerprintingCanvasImageDataNoise(bool);
-   BLINK_PLATFORM_EXPORT static void EnableSignedExchangeSubresourcePrefetch(
-       bool);
-   BLINK_PLATFORM_EXPORT static void EnableSubresourceWebBundles(bool);
+@@ -76,6 +76,7 @@ class BLINK_PLATFORM_EXPORT WebRuntimeFe
+ 
+   static void EnableFingerprintingClientRectsNoise(bool);
+   static void EnableFingerprintingCanvasMeasureTextNoise(bool);
++  static void EnableFingerprintingCanvasImageDataNoise(bool);
+ 
+   WebRuntimeFeatures() = delete;
+ 
 --- a/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
 +++ b/third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.cc
-@@ -30,6 +30,7 @@
- #include "third_party/blink/renderer/platform/graphics/bitmap_image.h"
- #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
- #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
-+#include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
- #include "third_party/blink/renderer/platform/graphics/stroke_data.h"
- #include "third_party/blink/renderer/platform/graphics/video_frame_image_util.h"
- #include "third_party/blink/renderer/platform/heap/heap.h"
-@@ -2311,6 +2312,9 @@ ImageData* BaseRenderingContext2D::getIm
+@@ -876,6 +876,9 @@ ImageData* BaseRenderingContext2D::getIm
            snapshot->PaintImageForCurrentFrame().GetSkImageInfo().bounds();
        DCHECK(!bounds.intersect(SkIRect::MakeXYWH(sx, sy, sw, sh)));
      }
 +    if (read_pixels_successful && RuntimeEnabledFeatures::FingerprintingCanvasImageDataNoiseEnabled()) {
-+      StaticBitmapImage::ShuffleSubchannelColorData(image_data_pixmap.addr(), image_data_pixmap.info(), sx, sy);
++      StaticBitmapImage::ShuffleSubchannelColorData(image_data_pixmap.addr(), image_data_pixmap.info());
 +    }
    }
  
    return image_data;
 --- a/third_party/blink/renderer/platform/BUILD.gn
 +++ b/third_party/blink/renderer/platform/BUILD.gn
-@@ -1645,7 +1645,9 @@ component("platform") {
+@@ -1837,7 +1837,9 @@ component("platform") {
      "//third_party/blink/renderer:non_test_config",
    ]
  
@@ -95,10 +87,10 @@ approach to change color components.
 +  ]
  
    allow_circular_includes_from = [
-     "//third_party/blink/renderer/platform/blob",
+     ":character_property_data",
 --- a/third_party/blink/renderer/platform/exported/web_runtime_features.cc
 +++ b/third_party/blink/renderer/platform/exported/web_runtime_features.cc
-@@ -697,4 +697,8 @@ void WebRuntimeFeatures::EnableFingerpri
+@@ -135,4 +135,8 @@ void WebRuntimeFeatures::EnableFingerpri
    RuntimeEnabledFeatures::SetFingerprintingCanvasMeasureTextNoiseEnabled(enable);
  }
  
@@ -107,29 +99,6 @@ approach to change color components.
 +}
 +
  }  // namespace blink
---- a/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
-+++ b/third_party/blink/renderer/platform/graphics/image_data_buffer.cc
-@@ -36,6 +36,8 @@
- 
- #include "base/compiler_specific.h"
- #include "base/memory/ptr_util.h"
-+#include "base/rand_util.h"
-+#include "base/logging.h"
- #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
- #include "third_party/blink/renderer/platform/image-encoders/image_encoder.h"
- #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
-@@ -145,6 +147,11 @@ bool ImageDataBuffer::EncodeImageInterna
-                                           const SkPixmap& pixmap) const {
-   DCHECK(is_valid_);
- 
-+  if (RuntimeEnabledFeatures::FingerprintingCanvasImageDataNoiseEnabled()) {
-+    // shuffle subchannel color data within the pixmap
-+    StaticBitmapImage::ShuffleSubchannelColorData(pixmap_.writable_addr(), pixmap_.info(), 0, 0);
-+  }
-+
-   if (mime_type == kMimeTypeJpeg) {
-     SkJpegEncoder::Options options;
-     options.fQuality = ImageEncoder::ComputeJpegQuality(quality);
 --- a/third_party/blink/renderer/platform/graphics/static_bitmap_image.cc
 +++ b/third_party/blink/renderer/platform/graphics/static_bitmap_image.cc
 @@ -4,6 +4,8 @@
@@ -141,21 +110,22 @@ approach to change color components.
  #include "base/numerics/checked_math.h"
  #include "gpu/command_buffer/client/gles2_interface.h"
  #include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
-@@ -11,10 +13,12 @@
+@@ -11,11 +13,13 @@
  #include "third_party/blink/renderer/platform/graphics/image_observer.h"
  #include "third_party/blink/renderer/platform/graphics/paint/paint_image.h"
  #include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
 +#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+ #include "third_party/blink/renderer/platform/transforms/affine_transform.h"
  #include "third_party/skia/include/core/SkCanvas.h"
  #include "third_party/skia/include/core/SkImage.h"
  #include "third_party/skia/include/core/SkPaint.h"
  #include "third_party/skia/include/core/SkSurface.h"
-+#include "third_party/skia/include/private/SkColorData.h"
++#include "third_party/skia/src/core/SkColorData.h"
+ #include "ui/gfx/geometry/skia_conversions.h"
  #include "v8/include/v8.h"
  
- namespace blink {
-@@ -80,4 +84,154 @@ void StaticBitmapImage::DrawHelper(cc::P
-       WebCoreClampingModeToSkiaRectConstraint(draw_options.clamping_mode));
+@@ -116,4 +120,154 @@ void StaticBitmapImage::DrawHelper(cc::P
+                         ToSkiaRectConstraint(draw_options.clamping_mode));
  }
  
 +// set the component to maximum-delta if it is >= maximum, or add to existing color component (color + delta)
@@ -163,8 +133,8 @@ approach to change color components.
 +
 +#define writable_addr(T, p, stride, x, y) (T*)((const char *)p + y * stride + x * sizeof(T))
 +
-+void StaticBitmapImage::ShuffleSubchannelColorData(const void *addr, const SkImageInfo& info, int srcX, int srcY) {
-+  auto w = info.width() - srcX, h = info.height() - srcY;
++void StaticBitmapImage::ShuffleSubchannelColorData(const void *addr, const SkImageInfo& info) {
++  auto w = info.width(), h = info.height();
 +
 +  // skip tiny images; info.width()/height() can also be 0
 +  if ((w < 8) || (h < 8)) {
@@ -196,7 +166,7 @@ approach to change color components.
 +    int x = currentW * shuffleX, y = currentH * shuffleY;
 +
 +    // calculate randomisation amounts for each RGB component
-+    uint8_t shuffleR = base::RandInt(0, 4);
++    uint8_t shuffleR = base::RandIntInclusive(0, 4);
 +    uint8_t shuffleG = (shuffleR + x) % 4;
 +    uint8_t shuffleB = (shuffleG + y) % 4;
 +
@@ -311,24 +281,46 @@ approach to change color components.
  }  // namespace blink
 --- a/third_party/blink/renderer/platform/graphics/static_bitmap_image.h
 +++ b/third_party/blink/renderer/platform/graphics/static_bitmap_image.h
-@@ -36,6 +36,8 @@ class PLATFORM_EXPORT StaticBitmapImage
+@@ -38,6 +38,8 @@ class PLATFORM_EXPORT StaticBitmapImage
  
    StaticBitmapImage(ImageOrientation orientation) : orientation_(orientation) {}
  
-+  static void ShuffleSubchannelColorData(const void *addr, const SkImageInfo& info, int srcX, int srcY);
++  static void ShuffleSubchannelColorData(const void *addr, const SkImageInfo& info);
 +
    bool IsStaticBitmapImage() const override { return true; }
  
    // Methods overridden by all sub-classes
+--- a/third_party/blink/renderer/platform/image-encoders/image_encoder.cc
++++ b/third_party/blink/renderer/platform/image-encoders/image_encoder.cc
+@@ -13,6 +13,8 @@
+ #include <stdio.h>  // Needed by jpeglib.h
+ 
+ #include "jpeglib.h"  // for JPEG_MAX_DIMENSION
++#include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
++#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+ #include "third_party/libwebp/src/src/webp/encode.h"  // for WEBP_MAX_DIMENSION
+ 
+ namespace blink {
+@@ -44,6 +46,10 @@ bool ImageEncoder::Encode(Vector<unsigne
+                           const SkPixmap& src,
+                           ImageEncodingMimeType mime_type,
+                           double quality) {
++  if (RuntimeEnabledFeatures::FingerprintingCanvasImageDataNoiseEnabled()) {
++    // shuffle subchannel color data within the pixmap
++    StaticBitmapImage::ShuffleSubchannelColorData(src.writable_addr(), src.info());
++  }
+   switch (mime_type) {
+     case kMimeTypeJpeg: {
+       SkJpegEncoder::Options options;
 --- a/third_party/blink/renderer/platform/runtime_enabled_features.json5
 +++ b/third_party/blink/renderer/platform/runtime_enabled_features.json5
-@@ -1082,6 +1082,9 @@
+@@ -3271,6 +3271,9 @@
        name: "FingerprintingCanvasMeasureTextNoise",
      },
      {
 +      name: "FingerprintingCanvasImageDataNoise",
 +    },
 +    {
-       name: "FocuslessSpatialNavigation",
-       settable_from_internals: true,
+       name: "Fledge",
+       public: true,
      },

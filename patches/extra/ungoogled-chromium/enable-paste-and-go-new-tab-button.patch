@@ -1,32 +1,37 @@
---- a/chrome/browser/ui/views/tabs/new_tab_button.cc
-+++ b/chrome/browser/ui/views/tabs/new_tab_button.cc
-@@ -58,10 +58,8 @@ NewTabButton::NewTabButton(TabStrip* tab
-   SetAnimateOnStateChange(true);
- // TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
- // of lacros-chrome is complete.
--#if defined(OS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
-   SetTriggerableEventFlags(GetTriggerableEventFlags() |
-                            ui::EF_MIDDLE_MOUSE_BUTTON);
+--- a/chrome/browser/ui/browser_commands.cc
++++ b/chrome/browser/ui/browser_commands.cc
+@@ -1427,9 +1427,6 @@ void NewTabToRight(BrowserWindowInterfac
+ }
+ 
+ void NewTabFromClipboardURL(BrowserWindowInterface* browser) {
+-#if BUILDFLAG(IS_LINUX)
+-  if (ui::Clipboard::IsSupportedClipboardBuffer(
+-          ui::ClipboardBuffer::kSelection)) {
+     ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
+     CHECK(clipboard)
+         << "Clipboard instance is not available, cannot proceed with "
+@@ -1459,8 +1456,6 @@ void NewTabFromClipboardURL(BrowserWindo
+               }
+             },
+             browser->GetWeakPtr()));
+-  }
 -#endif
+ }
  
-   ink_drop_container_ =
-       AddChildView(std::make_unique<views::InkDropContainerView>());
---- a/chrome/browser/ui/views/tabs/tab_strip.cc
-+++ b/chrome/browser/ui/views/tabs/tab_strip.cc
-@@ -2680,8 +2680,6 @@ void TabStrip::NewTabButtonPressed(const
+ void CloseTab(BrowserWindowInterface* browser) {
+--- a/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.cc
+@@ -249,13 +249,11 @@ HorizontalTabStripRegionViewOld::Horizon
+     new_tab_button_->GetViewAccessibility().SetName(
+         l10n_util::GetStringUTF16(IDS_ACCNAME_NEWTAB));
  
-     const ui::MouseEvent& mouse = static_cast<const ui::MouseEvent&>(event);
-     if (mouse.IsOnlyMiddleMouseButton()) {
--      if (ui::Clipboard::IsSupportedClipboardBuffer(
--              ui::ClipboardBuffer::kSelection)) {
-         ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
-         CHECK(clipboard);
-         std::u16string clipboard_text;
-@@ -2689,7 +2687,6 @@ void TabStrip::NewTabButtonPressed(const
-                             /* data_dst = */ nullptr, &clipboard_text);
-         if (!clipboard_text.empty())
-           controller_->CreateNewTabWithLocation(clipboard_text);
--      }
-       return;
-     }
+-#if BUILDFLAG(IS_LINUX)
+     // On Linux, middle-clicking the New Tab Button triggers
+     // paste and navigate, either to URLs or to search queries.
+     new_tab_button_->SetTriggerableEventFlags(
+         new_tab_button_->GetTriggerableEventFlags() |
+         ui::EF_MIDDLE_MOUSE_BUTTON);
+-#endif
    }
+ 
+   reserved_grab_handle_space_ =

@@ -1,69 +1,10 @@
 # Disable additional URLs that are not caught by the "trk" scheme
 
---- a/chrome/browser/plugins/plugins_resource_service.cc
-+++ b/chrome/browser/plugins/plugins_resource_service.cc
-@@ -53,9 +53,6 @@ const int kStartResourceFetchDelayMs = 6
- // Delay between calls to update the cache 1 day and 2 minutes in testing mode.
- const int kCacheUpdateDelayMs = 24 * 60 * 60 * 1000;
- 
--const char kPluginsServerUrl[] =
--    "https://www.gstatic.com/chrome/config/plugins_3/";
--
- GURL GetPluginsServerURL() {
-   std::string filename;
- #if defined(OS_WIN)
-@@ -70,7 +67,7 @@ GURL GetPluginsServerURL() {
- #error Unknown platform
- #endif
- 
--  return GURL(kPluginsServerUrl + filename);
-+  return GURL("about:blank");
- }
- 
- }  // namespace
---- a/components/safe_browsing/content/browser/client_side_model_loader.cc
-+++ b/components/safe_browsing/content/browser/client_side_model_loader.cc
-@@ -61,8 +61,6 @@ std::string ReadFileIntoString(base::Fil
- // Model Loader strings
- const size_t ModelLoader::kMaxModelSizeBytes = 150 * 1024;
- const int ModelLoader::kClientModelFetchIntervalMs = 3600 * 1000;
--const char ModelLoader::kClientModelUrlPrefix[] =
--    "https://ssl.gstatic.com/safebrowsing/csd/";
- const char ModelLoader::kClientModelNamePattern[] =
-     "client_model_v5%s_variation_%d.pb";
- #if !BUILDFLAG(FULL_SAFE_BROWSING)
-@@ -123,7 +121,7 @@ ModelLoader::ModelLoader(
-     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-     bool is_extended_reporting)
-     : name_(FillInModelName(is_extended_reporting, GetModelNumber())),
--      url_(kClientModelUrlPrefix + name_),
-+      url_("about:blank"),
-       update_renderers_callback_(update_renderers_callback),
-       url_loader_factory_(url_loader_factory),
-       last_client_model_status_(ClientModelStatus::MODEL_NEVER_FETCHED) {
-@@ -136,7 +134,7 @@ ModelLoader::ModelLoader(
-     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-     const std::string& model_name)
-     : name_(model_name),
--      url_(kClientModelUrlPrefix + name_),
-+      url_("about:blank"),
-       update_renderers_callback_(update_renderers_callback),
-       url_loader_factory_(url_loader_factory),
-       last_client_model_status_(ClientModelStatus::MODEL_NEVER_FETCHED) {
 --- a/rlz/lib/financial_ping.cc
 +++ b/rlz/lib/financial_ping.cc
-@@ -338,7 +338,7 @@ FinancialPing::PingResponse FinancialPin
+@@ -298,7 +298,7 @@ FinancialPing::PingResponse FinancialPin
+   response->clear();
  
-   // Open network connection.
-   InternetHandle connection_handle = InternetConnectA(inet_handle,
--      kFinancialServer, kFinancialPort, "", "", INTERNET_SERVICE_HTTP,
-+      "about:blank", kFinancialPort, "", "", INTERNET_SERVICE_HTTP,
-       INTERNET_FLAG_NO_CACHE_WRITE, 0);
-   if (!connection_handle)
-     return PING_FAILURE;
-@@ -382,7 +382,7 @@ FinancialPing::PingResponse FinancialPin
-   return PING_SUCCESSFUL;
- #else
    std::string url =
 -      base::StringPrintf("https://%s%s", kFinancialServer, request);
 +      base::StringPrintf("https://%s%s", "about:blank", request);
@@ -72,17 +13,17 @@
    // wininet implementation.
 --- a/rlz/lib/lib_values.cc
 +++ b/rlz/lib/lib_values.cc
-@@ -40,7 +40,6 @@ const char kSetDccResponseVariable[] = "
+@@ -43,7 +43,6 @@ const char kSetDccResponseVariable[] = "
  //
  
  const char kFinancialPingPath[] = "/tools/pso/ping";
--const char kFinancialServer[]   = "trk:443:clients1.google.com"; /* not using URLRequest! catch with cache.ir */
+-const char kFinancialServer[]   = "clients1.google.com";
  const int kFinancialPort = 443;
  
  // Ping times in 100-nanosecond intervals.
 --- a/rlz/lib/lib_values.h
 +++ b/rlz/lib/lib_values.h
-@@ -72,7 +72,6 @@ extern const char kSetDccResponseVariabl
+@@ -75,7 +75,6 @@ extern const char kSetDccResponseVariabl
  //
  
  extern const char kFinancialPingPath[];

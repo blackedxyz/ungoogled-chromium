@@ -1,10 +1,10 @@
 
---- a/chrome/browser/background/background_mode_manager.cc
-+++ b/chrome/browser/background/background_mode_manager.cc
-@@ -376,7 +376,7 @@ void BackgroundModeManager::RegisterPref
-   registry->RegisterBooleanPref(prefs::kChromeCreatedLoginItem, false);
-   registry->RegisterBooleanPref(prefs::kMigratedLoginItemPref, false);
- #endif
+--- a/chrome/browser/background/extensions/background_mode_manager.cc
++++ b/chrome/browser/background/extensions/background_mode_manager.cc
+@@ -351,7 +351,7 @@ BackgroundModeManager::~BackgroundModeMa
+ 
+ // static
+ void BackgroundModeManager::RegisterPrefs(PrefRegistrySimple* registry) {
 -  registry->RegisterBooleanPref(prefs::kBackgroundModeEnabled, true);
 +  registry->RegisterBooleanPref(prefs::kBackgroundModeEnabled, false);
  }
@@ -12,7 +12,7 @@
  void BackgroundModeManager::RegisterProfile(Profile* profile) {
 --- a/chrome/browser/chrome_content_browser_client.cc
 +++ b/chrome/browser/chrome_content_browser_client.cc
-@@ -1238,7 +1238,7 @@ void ChromeContentBrowserClient::Registe
+@@ -1651,7 +1651,7 @@ void ChromeContentBrowserClient::Registe
  void ChromeContentBrowserClient::RegisterProfilePrefs(
      user_prefs::PrefRegistrySyncable* registry) {
    registry->RegisterBooleanPref(prefs::kDisable3DAPIs, false);
@@ -21,148 +21,95 @@
    // Register user prefs for mapping SitePerProcess and IsolateOrigins in
    // user policy in addition to the same named ones in Local State (which are
    // used for mapping the command-line flags).
---- a/chrome/browser/net/prediction_options.cc
-+++ b/chrome/browser/net/prediction_options.cc
-@@ -31,7 +31,7 @@ NetworkPredictionStatus CanPrefetchAndPr
-       }
-       return NetworkPredictionStatus::DISABLED_DUE_TO_NETWORK;
-     default:
--      DCHECK_EQ(NETWORK_PREDICTION_NEVER, network_prediction_options);
-+      //DCHECK_EQ(NETWORK_PREDICTION_NEVER, network_prediction_options);
-       return NetworkPredictionStatus::DISABLED_ALWAYS;
-   }
- }
---- a/chrome/browser/net/prediction_options.h
-+++ b/chrome/browser/net/prediction_options.h
-@@ -22,7 +22,7 @@ enum NetworkPredictionOptions {
-   NETWORK_PREDICTION_ALWAYS,
-   NETWORK_PREDICTION_WIFI_ONLY,
-   NETWORK_PREDICTION_NEVER,
--  NETWORK_PREDICTION_DEFAULT = NETWORK_PREDICTION_WIFI_ONLY,
-+  NETWORK_PREDICTION_DEFAULT = NETWORK_PREDICTION_NEVER,
- };
- 
- enum class NetworkPredictionStatus {
 --- a/chrome/browser/net/profile_network_context_service.cc
 +++ b/chrome/browser/net/profile_network_context_service.cc
-@@ -319,7 +319,7 @@ void ProfileNetworkContextService::Updat
+@@ -648,7 +648,7 @@ void ProfileNetworkContextService::Confi
  void ProfileNetworkContextService::RegisterProfilePrefs(
      user_prefs::PrefRegistrySyncable* registry) {
-   registry->RegisterBooleanPref(
--      embedder_support::kAlternateErrorPagesEnabled, true,
-+      embedder_support::kAlternateErrorPagesEnabled, false,
-       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+   registry->RegisterBooleanPref(embedder_support::kAlternateErrorPagesEnabled,
+-                                true);
++                                false);
    registry->RegisterBooleanPref(prefs::kQuicAllowed, true);
    registry->RegisterBooleanPref(prefs::kGloballyScopeHTTPAuthCacheEnabled,
+                                 false);
+--- a/chrome/browser/preloading/preloading_prefs.h
++++ b/chrome/browser/preloading/preloading_prefs.h
+@@ -23,7 +23,7 @@ enum class NetworkPredictionOptions {
+   kWifiOnlyDeprecated = 1,
+   kDisabled = 2,
+   kExtended = 3,
+-  kDefault = kWifiOnlyDeprecated,
++  kDefault = kDisabled,
+ };
+ 
+ // Enum representing possible values of the Preload Pages opt-in state. These
 --- a/chrome/browser/profiles/profile.cc
 +++ b/chrome/browser/profiles/profile.cc
-@@ -276,7 +276,7 @@ const char Profile::kProfileKey[] = "__P
+@@ -329,7 +329,7 @@ const char Profile::kProfileKey[] = "__P
  void Profile::RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
    registry->RegisterBooleanPref(
        prefs::kSearchSuggestEnabled,
 -      true,
 +      false,
        user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
- #if defined(OS_ANDROID)
+ #if BUILDFLAG(IS_ANDROID)
    registry->RegisterStringPref(
---- a/chrome/browser/resources/settings/reset_page/reset_profile_dialog.html
-+++ b/chrome/browser/resources/settings/reset_page/reset_profile_dialog.html
-@@ -36,7 +36,7 @@
-         </cr-button>
-       </div>
-       <div slot="footer">
--        <cr-checkbox id="sendSettings" checked>
-+        <cr-checkbox id="sendSettings">
-           $i18nRaw{resetPageFeedback}</cr-checkbox>
-       </div>
-     </cr-dialog>
---- a/chrome/browser/signin/account_consistency_mode_manager.cc
-+++ b/chrome/browser/signin/account_consistency_mode_manager.cc
-@@ -111,7 +111,7 @@ AccountConsistencyModeManager::~AccountC
- // static
- void AccountConsistencyModeManager::RegisterProfilePrefs(
-     user_prefs::PrefRegistrySyncable* registry) {
--  registry->RegisterBooleanPref(prefs::kSigninAllowedOnNextStartup, true);
-+  registry->RegisterBooleanPref(prefs::kSigninAllowedOnNextStartup, false);
- }
- 
- // static
+--- a/chrome/browser/resources/settings/reset_page/reset_profile_dialog.html.ts
++++ b/chrome/browser/resources/settings/reset_page/reset_profile_dialog.html.ts
+@@ -33,7 +33,7 @@ export function getHtml(this: SettingsRe
+     </cr-button>
+   </div>
+   <div slot="footer">
+-    <cr-checkbox id="sendSettings" checked>
++    <cr-checkbox id="sendSettings">
+       $i18nRaw{resetPageFeedback}
+     </cr-checkbox>
+   </div>
 --- a/chrome/browser/ui/browser_ui_prefs.cc
 +++ b/chrome/browser/ui/browser_ui_prefs.cc
-@@ -77,11 +77,11 @@ void RegisterBrowserUserPrefs(user_prefs
+@@ -145,7 +145,7 @@ void RegisterBrowserUserPrefs(user_prefs
    registry->RegisterBooleanPref(prefs::kWebAppCreateInAppsMenu, true);
    registry->RegisterBooleanPref(prefs::kWebAppCreateInQuickLaunchBar, true);
    registry->RegisterBooleanPref(
 -      translate::prefs::kOfferTranslateEnabled, true,
 +      translate::prefs::kOfferTranslateEnabled, false,
        user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
-   registry->RegisterStringPref(prefs::kCloudPrintEmail, std::string());
-   registry->RegisterBooleanPref(prefs::kCloudPrintProxyEnabled, true);
--  registry->RegisterBooleanPref(prefs::kCloudPrintSubmitEnabled, true);
-+  registry->RegisterBooleanPref(prefs::kCloudPrintSubmitEnabled, false);
    registry->RegisterDictionaryPref(prefs::kBrowserWindowPlacement);
    registry->RegisterDictionaryPref(prefs::kBrowserWindowPlacementPopup);
-   registry->RegisterDictionaryPref(prefs::kAppWindowPlacement);
---- a/chrome/service/cloud_print/connector_settings.cc
-+++ b/chrome/service/cloud_print/connector_settings.cc
-@@ -59,7 +59,7 @@ void ConnectorSettings::InitFrom(Service
-   DCHECK(server_url_.is_valid());
- 
-   connect_new_printers_ = prefs->GetBoolean(
--      prefs::kCloudPrintConnectNewPrinters, true);
-+      prefs::kCloudPrintConnectNewPrinters, false);
- 
-   xmpp_ping_enabled_ = prefs->GetBoolean(
-       prefs::kCloudPrintXmppPingEnabled, false);
 --- a/components/autofill/core/common/autofill_prefs.cc
 +++ b/components/autofill/core/common/autofill_prefs.cc
-@@ -131,10 +131,10 @@ const char kAutocompleteLastVersionReten
+@@ -42,7 +42,7 @@ constexpr char kAutofillAiSyncedOptInSta
  void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
    // Synced prefs. Used for cross-device choices, e.g., credit card Autofill.
    registry->RegisterBooleanPref(
--      prefs::kAutofillEnabledDeprecated, true,
-+      prefs::kAutofillEnabledDeprecated, false,
-       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
-   registry->RegisterBooleanPref(
--      prefs::kAutofillProfileEnabled, true,
-+      prefs::kAutofillProfileEnabled, false,
+-      kAutofillProfileEnabled, true,
++      kAutofillProfileEnabled, false,
        user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
    registry->RegisterIntegerPref(
-       prefs::kAutofillLastVersionDeduped, 0,
-@@ -147,7 +147,7 @@ void RegisterProfilePrefs(user_prefs::Pr
-       prefs::kAutofillLastVersionDisusedAddressesDeleted, 0,
+       kAutofillLastVersionDeduped, 0,
+@@ -73,7 +73,7 @@ void RegisterProfilePrefs(user_prefs::Pr
+       kAutofillHasSeenIban, false,
        user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
    registry->RegisterBooleanPref(
--      prefs::kAutofillCreditCardEnabled, true,
-+      prefs::kAutofillCreditCardEnabled, false,
+-      kAutofillCreditCardEnabled, true,
++      kAutofillCreditCardEnabled, false,
        user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
-   registry->RegisterStringPref(
-       prefs::kAutofillProfileValidity, "",
+   registry->RegisterBooleanPref(
+       kAutofillPaymentCvcStorage, true,
 --- a/components/bookmarks/browser/bookmark_utils.cc
 +++ b/components/bookmarks/browser/bookmark_utils.cc
-@@ -437,7 +437,7 @@ bool DoesBookmarkContainWords(const std:
+@@ -451,7 +451,7 @@ bool DoesBookmarkContainWords(const std:
+ 
  void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
    registry->RegisterBooleanPref(
-       prefs::kShowBookmarkBar,
--      false,
-+      true,
+-      prefs::kShowBookmarkBar, false,
++      prefs::kShowBookmarkBar, true,
        user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
-   registry->RegisterBooleanPref(prefs::kEditBookmarksEnabled, true);
-   registry->RegisterBooleanPref(
---- a/components/bookmarks/browser/features.cc
-+++ b/components/bookmarks/browser/features.cc
-@@ -10,7 +10,7 @@ namespace features {
- // Changes the apps shortcut on the bookmarks bar to default to off.
- // https://crbug.com/1236793
- const base::Feature kAppsShortcutDefaultOff{"AppsShortcutDefaultOff",
--                                            base::FEATURE_DISABLED_BY_DEFAULT};
-+                                            base::FEATURE_ENABLED_BY_DEFAULT};
- 
- }  // namespace features
- }  // namespace bookmarks
+   // `BookmarkBarVisibilityState::kOnlyShowOnNtp` is equivalent to
+   // `kShowBookmarkBar` set to false.
 --- a/components/content_settings/core/browser/cookie_settings.cc
 +++ b/components/content_settings/core/browser/cookie_settings.cc
-@@ -63,7 +63,7 @@ void CookieSettings::RegisterProfilePref
+@@ -78,7 +78,7 @@ void CookieSettings::RegisterProfilePref
      user_prefs::PrefRegistrySyncable* registry) {
    registry->RegisterIntegerPref(
        prefs::kCookieControlsMode,
@@ -173,7 +120,7 @@
  
 --- a/components/password_manager/core/browser/password_manager.cc
 +++ b/components/password_manager/core/browser/password_manager.cc
-@@ -204,10 +204,10 @@ bool HasMutedCredentials(base::span<cons
+@@ -547,10 +547,10 @@ PasswordForm CreateFormForLeakCheck(cons
  void PasswordManager::RegisterProfilePrefs(
      user_prefs::PrefRegistrySyncable* registry) {
    registry->RegisterBooleanPref(
@@ -184,11 +131,11 @@
 -      prefs::kCredentialsEnableAutosignin, true,
 +      prefs::kCredentialsEnableAutosignin, false,
        user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
-   registry->RegisterStringPref(prefs::kSyncPasswordHash, std::string(),
-                                PrefRegistry::NO_REGISTRATION_FLAGS);
+   registry->RegisterBooleanPref(
+       prefs::kWasAutoSignInFirstRunExperienceShown, false,
 --- a/components/payments/core/payment_prefs.cc
 +++ b/components/payments/core/payment_prefs.cc
-@@ -16,7 +16,7 @@ const char kCanMakePaymentEnabled[] = "p
+@@ -11,7 +11,7 @@ namespace payments {
  void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
    registry->RegisterBooleanPref(kPaymentsFirstTransactionCompleted, false);
    registry->RegisterBooleanPref(
